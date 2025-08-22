@@ -1,79 +1,82 @@
+/*
+This is a ready-to-use template for a Weather Routing Website
+using MarigeoRoute, Windy, and OpenCPN Weather Routing Plugin.
+*/
+
+// ===================== server.js =====================
+const express = require('express');
+const { exec } = require('child_process');
+const path = require('path');
+const app = express();
+const PORT = process.env.PORT || 3000;
+
+app.use(express.json());
+app.use(express.static(path.join(__dirname, 'public')));
+
+// Route to get weather routing from Python MarigeoRoute script
+app.post('/route', (req, res) => {
+    const { start, end } = req.body;
+    exec(`python weatherRouting.py ${start} ${end}`, (err, stdout, stderr) => {
+        if (err) return res.status(500).send(err.message);
+        res.send(JSON.parse(stdout));
+    });
+});
+
+app.listen(PORT, () => console.log(`Server running on http://localhost:${PORT}`));
+
+
+// ===================== weatherRouting.py =====================
+# Place this file in the root folder of the project
+import sys
+import json
+
+def weather_routing(start, end):
+    # Placeholder logic for MarigeoRoute
+    return {"route": f"Route from {start} to {end} calculated"}
+
+if __name__ == "__main__":
+    start = sys.argv[1]
+    end = sys.argv[2]
+    result = weather_routing(start, end)
+    print(json.dumps(result))
+
+
+// ===================== public/index.html =====================
 <!DOCTYPE html>
-<html lang="en">
+<html>
 <head>
-  <meta charset="UTF-8">
-  <title>Marine Weather Dashboard</title>
-  <style>
-    body {
-      font-family: Arial;
-      margin: 0;
-      padding: 0;
-      background-color: #e0f7fa;
-      color: #333;
-    }
-    header {
-      background-color: #0077be;
-      color: white;
-      padding: 20px;
-      text-align: center;
-    }
-    section {
-      padding: 20px;
-    }
-    #windy {
-      width: 100%;
-      height: 500px;
-      border: none;
-    }
-    .weather-box {
-      background: #ffffff;
-      padding: 15px;
-      border-radius: 10px;
-      box-shadow: 0 0 10px rgba(0,0,0,0.1);
-      max-width: 500px;
-      margin: 20px auto;
-    }
-  </style>
+    <title>Weather Routing Website</title>
+    <script src="https://api.windy.com/assets/map-forecast/libBoot.js"></script>
 </head>
 <body>
-  <header>
-    <h1>Marine Weather Dashboard</h1>
-    <p>Live data from Open-Meteo and Windy.com</p>
-  </header>
+    <h1>Weather Routing Website</h1>
+    <input id="start" placeholder="Start coordinates">
+    <input id="end" placeholder="End coordinates">
+    <button onclick="getRoute()">Calculate Route</button>
+    <pre id="result"></pre>
 
-  <section class="weather-box">
-    <h2>Marine Forecast (Open-Meteo)</h2>
-    <p><strong>Location:</strong> <span id="location">Waiting for data...</span></p>
-    <p><strong>Wave Height:</strong> <span id="wave_height">--</span> meters</p>
-    <p><strong>Wind Speed:</strong> <span id="wind_speed">--</span> km/h</p>
-  </section>
+    <div id="windy" style="width: 800px; height: 600px;"></div>
 
-  <section>
-    <h2>Windy.com Live Map</h2>
-    <iframe id="windy" src="https://embed.windy.com/embed2.html?lat=20.0&lon=70.0&detailLat=20.0&detailLon=70.0&width=650&height=450&zoom=5&level=surface&overlay=wind&menu=true&message=true&marker=true&calendar=now&pressure=true&type=map&location=coordinates&detail=true&metricWind=km%2Fh&metricTemp=%C2%B0C&radarRange=-1" frameborder="0"></iframe>
-  </section>
+    <script>
+        const options = {
+            key: 'YOUR_WINDY_API_KEY', // Insert your Windy API key
+            lat: 50.5,
+            lon: 14.5,
+            zoom: 5
+        };
+        const windy = new Windy(options);
 
-  <script>
-    async function getMarineWeather() {
-      const lat = 20.0;
-      const lon = 70.0;
-      const url = `https://marine-api.open-meteo.com/v1/marine?latitude=${lat}&longitude=${lon}&hourly=wave_height,wind_speed`;
-
-      try {
-        const response = await fetch(url);
-        const data = await response.json();
-        const wave = data.hourly.wave_height[0];
-        const wind = data.hourly.wind_speed[0];
-
-        document.getElementById("location").innerText = `Lat ${lat}, Lon ${lon}`;
-        document.getElementById("wave_height").innerText = wave;
-        document.getElementById("wind_speed").innerText = wind;
-      } catch (err) {
-        console.error("Failed to load weather:", err);
-      }
-    }
-
-    getMarineWeather();
-  </script>
+        async function getRoute() {
+            const start = document.getElementById('start').value;
+            const end = document.getElementById('end').value;
+            const response = await fetch('/route', {
+                method: 'POST',
+                headers: {'Content-Type': 'application/json'},
+                body: JSON.stringify({start, end})
+            });
+            const data = await response.json();
+            document.getElementById('result').textContent = JSON.stringify(data, null, 2);
+        }
+    </script>
 </body>
 </html>
